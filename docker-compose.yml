@@ -1,0 +1,15 @@
+version '3.9'
+services:
+  api:
+    build: ./api
+    container_name: hedges-api
+    environment:
+      - POSTGRES_DNS=postgresql+asyncpg://trader:traderpass@postgres:5432/trading
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:9092
+      - REDIS_URL=redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+      - redpanda
