@@ -22,5 +22,12 @@ services:
       - "5432:4532"
     volumes:
       - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7.2
+    container_name: hedgesim-redis
+    ports:
+      - "6379:6379"
+  
 volumes:
   pgdata:
