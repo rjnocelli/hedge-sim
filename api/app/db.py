@@ -13,8 +13,8 @@ async def init_db():
                  INSERT INTO positions(symbol, spot_qty, perp_qty)
                  VALUES (:s, 0, 0)
                  ON CONFLICT (symbol) DO NOTHING
-                 """), {"s", sym})
-
+                 """), {"s": sym})
+ 
 async def get_session() -> AsyncSession:
     async with SessionLocal() as session:
         yield session
