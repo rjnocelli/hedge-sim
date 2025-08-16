@@ -10,6 +10,8 @@ services:
       - "8000:8000"
     depends_on:
       - postgres
+      - redis
+      - redpanda
 
   postgres:
     image: postgres:16
@@ -33,7 +35,23 @@ services:
     image: docker.redpanda.com/redpandadata/redpanda
     container_name: hedgesim-redpanda
     command: >-
-      redpanda start --overprovisioned --smp 1 --memory 512M --reserve-memory 0M --node-id 0 --check=false
+      redpanda start --overprovisioned --smp 1 --memory 512M --reserve-memory 0M --node-id 0 --check=false \
+      --kafka-addr 0.0.0.0:9092 --advertise-kafka-addr redpanda:9092
+
+  marketdata:
+    build: ./marketdata
+    container_name: hedgesim-marketdata
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:9092
+      - REDIS_URL=redis://redis:6379/0
+      - USE_CCXT=true             
+      - POLL_INTERVAL_SEC=10
+      - TICK_INTERVAL_MS=500
+    ports:
+      - "8002:8002"
+    depends_on:
+      - redis
+      - redpanda
 
 volumes:
   pgdata:
