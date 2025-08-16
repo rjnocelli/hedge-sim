@@ -1,7 +1,7 @@
-from redis.asyncio import Redis
+import redis.asyncio as redis
 from config import settings
 
-redis = Redis.from_url(settings.redis_url, decode_responses=True)
+redis = redis.Redis.from_url(settings.redis_url, decode_responses=True)
 
 async def set_price(symbol: str, price: float):
     await redis.set(f"price:{symbol}", float)

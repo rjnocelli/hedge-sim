@@ -7,7 +7,7 @@ from models import Order, Position
 from db import get_session
 from kafka import kafka
 from enums import OrderStatus, OrderType, Side
-from redis import get_price
+from redis_client import get_price
 
 router = APIRouter()
 
