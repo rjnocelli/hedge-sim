@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, validator
 from typing import Optional
-from .enums import AssetClass, Side, OrderType, OrderStatus
-from .config import settings
+from enums import AssetClass, Side, OrderType, OrderStatus
+from config import settings
 
 class OrderIn(BaseModel):
     asset_class: AssetClass

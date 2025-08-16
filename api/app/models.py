@@ -1,6 +1,6 @@
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column
 from sqlalchemy import String, Float, Integer, DateTime, func
-from .enums import OrderStatus
+from enums import OrderStatus
 
 Base =declarative_base()
 
