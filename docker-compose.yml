@@ -28,6 +28,12 @@ services:
     container_name: hedgesim-redis
     ports:
       - "6379:6379"
-  
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda
+    container_name: hedgesim-redpanda
+    command: >-
+      redpanda start --overprovisioned --smp 1 --memory 512M --reserve-memory 0M --node-id 0 --check=false
+
 volumes:
   pgdata:
