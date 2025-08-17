@@ -44,7 +44,7 @@ async def poll_real_prices():
 
     binance = ccxt.binance()
     while True:
-        for sym in ["BTCUSDT", "ETHUSDR"]:
+        for sym in ["BTCUSDT", "ETHUSDT"]:
             try:
                 t = await asyncio.to_thread(binance.fetch_ticker, sym.replace("USDT", "/USDT"))
                 prices[sym] = t["last"]
