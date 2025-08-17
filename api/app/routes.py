@@ -8,16 +8,20 @@ from db import get_session
 from kafka import kafka
 from enums import OrderStatus, OrderType, Side
 from redis_client import get_price
+from metrics import orders_total, orders_rejected_total, order_latency
 
 router = APIRouter()
 
 @router.post("/orders", response_model=OrderOut)
 async def create_order(payload: OrderIn, session: AsyncSession = Depends(get_session)) -> OrderOut:
+    t0 = time.perf_counter()
     if payload.order_type == OrderType.LIMIT.value:
         ref = await get_price(payload.symbol)
         if ref is not None and payload.limit_price is not None:
             if abs(payload.limit_price - ref) / ref > 0.20:
+                orders_rejected_total.labels(reason="limit_price_outlier").inc()
                 raise HTTPException(status_code=400, detail="limit_price deviates too much from reference")
+
     order = Order(
         asset_class=payload.asset_class.value,
         symbol=payload.symbol,
@@ -50,6 +54,8 @@ async def create_order(payload: OrderIn, session: AsyncSession = Depends(get_ses
             "limit_price": payload.limit_price,
             "ts": time.time(),
         })
+    orders_total.labels(payload.symbol, payload.side.value, payload.order_type.value).inc()
+    order_latency.observe(time.perf_counter() - t0)
     return OrderOut(
         id=order.id,
         asset_class=payload.asset_class,

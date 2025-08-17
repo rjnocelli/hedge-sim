@@ -2,6 +2,10 @@ import os, asyncio, json, random, time
 from aiokafka import AIOKafkaProducer
 import redis.asyncio as redis
 
+from prometheus_client import Counter, Gauge, make_asgi_app
+import uvicorn
+from fastapi import FastAPI
+
 try:
     import ccxt
 except Exception:
@@ -19,8 +23,16 @@ prices = {s: 0.0 for s in SYMBOLS}
 
 producer: AIOKafkaProducer | None = None
 
+price_ticks = Counter("md_ticks_total", "Market data ticks", ["symbol", "source"]) 
+price_gauge = Gauge("md_price", "Latest price", ["symbol"])
+metrics_app = make_asgi_app()
+app = FastAPI()
+app.mount("/metrics", metrics_app)
+
 async def publish(symbol: str, price: float, source: str):
     await redis.set(f"price:{symbol}", price)
+    price_gauge.labels(symbol).set(price)
+    price_ticks.labels(symbol, source).inc()    
     payload = {
         "symbol": symbol, "price": price, "ts": time.time(), "source": source}
     assert producer is not None
@@ -67,6 +79,10 @@ async def main():
         value_serializer=lambda v: json.dumps(v).encode("utf-8")
     )
     await producer.start()
+    import threading
+    def run_metrics():
+        uvicorn.run(app, host="0.0.0.0", port=8002, log_level="warning")
+    threading.Thread(target=run_metrics, daemon=True).start()
     await asyncio.gather(
         synthetic_ticks(),
         poll_real_prices()

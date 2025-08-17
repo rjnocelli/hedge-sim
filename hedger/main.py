@@ -4,7 +4,11 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy import text
 import redis.asyncio as redis
 from strategy import need_hedge, clip_quantity, choose_venue
-import logging
+
+import time
+from prometheus_client import Counter, Histogram, Gauge, make_asgi_app
+from fastapi import FastAPI
+import uvicorn
 
 import logging
 import sys
@@ -24,6 +28,16 @@ engine = create_async_engine(POSTGRES_DSN, echo=False, pool_pre_ping=True)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=False)
 
+orders_consumed = Counter("hedger_orders_consumed_total", "Orders consumed", ["symbol", "side"])
+hedges_done = Counter("hedger_hedges_total", "Hedges executed", ["symbol", "venue", "side"])
+hedge_latency = Histogram("hedger_latency_seconds", "Hedge decision latency")
+exposure_gauge = Gauge("exposure_usd", "Net USD exposure by symbol", ["symbol"])
+
+metrics_app = make_asgi_app()
+app = FastAPI()
+app.mount("/metrics", metrics_app)
+
+
 async def ensure_tables():
     async with engine.begin() as conn:
         await conn.execute(text("""
@@ -40,6 +54,9 @@ async def ensure_tables():
                                 """))
         
 async def process_order(msg: dict):
+    t0 = time.perf_counter()
+    side = msg["side"]
+    qty = float(msg["quantity"])
     symbol = msg["symbol"]
 
     async with SessionLocal() as s:
@@ -58,6 +75,13 @@ async def process_order(msg: dict):
     price = float(price_raw) if price_raw else 0.0
 
     usd_need = need_hedge(spot_qty, perp_qty, price, symbol)
+
+    orders_consumed.labels(symbol, side).inc()
+
+    if usd_need == 0.0:
+        exposure_gauge.labels(symbol).set((spot_qty + perp_qty) * price)
+        hedge_latency.observe(time.perf_counter() - t0)
+        return
 
     venue = choose_venue()
     clip = clip_quantity(usd_need, price, symbol)
@@ -87,6 +111,10 @@ async def process_order(msg: dict):
             })
         await s.commit()
 
+    exposure_gauge.labels(symbol).set((spot_qty + new_perp) * price)
+    hedges_done.labels(symbol, venue, hedge_side).inc()
+    hedge_latency.observe(time.perf_counter() - t0)
+
 async def consumer_loop():
     logger.info("Service started")
     consumer = AIOKafkaConsumer(
@@ -108,6 +136,10 @@ async def consumer_loop():
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.run_until_complete(ensure_tables())
+    import threading
+    def run_metrics():
+        uvicorn.run(app, host="0.0.0.0", port=8001, log_level="warning")
+    threading.Thread(target=run_metrics, daemon=True).start()
     loop.run_until_complete(consumer_loop())
 
         
