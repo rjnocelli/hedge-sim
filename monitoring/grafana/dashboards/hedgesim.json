@@ -1,0 +1,33 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Exposure USD by Symbol",
+      "targets": [{"expr": "exposure_usd", "legendFormat": "{{symbol}}"}],
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "Market Prices",
+      "targets": [{"expr": "md_price", "legendFormat": "{{symbol}}"}],
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 9}
+    },
+    {
+      "type": "bargauge",
+      "title": "Hedges Executed (count)",
+      "targets": [{"expr": "sum by (symbol) (increase(hedger_hedges_total[5m]))"}],
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 17}
+    },
+    {
+      "type": "bargauge",
+      "title": "Orders Received (count)",
+      "targets": [{"expr": "sum by (symbol) (increase(orders_total[5m]))"}],
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 17}
+    }
+  ],
+  "schemaVersion": 36,
+  "title": "HedgeSim Overview",
+  "version": 1
+}
