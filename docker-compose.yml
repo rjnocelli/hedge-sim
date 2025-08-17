@@ -109,5 +109,17 @@ services:
       - "3000:3000"
     depends_on:
       - prometheus
+
+  order_generator:
+    build: ./order_generator
+    depends_on:
+      - api
+      - postgres
+      - hedger
+      - redis
+      - marketdata
+    environment:
+      - API_URL=http://api:8000/orders
+     
 volumes:
   pgdata:
