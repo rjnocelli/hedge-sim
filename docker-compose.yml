@@ -35,8 +35,13 @@ services:
     image: docker.redpanda.com/redpandadata/redpanda
     container_name: hedgesim-redpanda
     command: >-
-      redpanda start --overprovisioned --smp 1 --memory 512M --reserve-memory 0M --node-id 0 --check=false \
-      --kafka-addr 0.0.0.0:9092 --advertise-kafka-addr redpanda:9092
+      redpanda start --overprovisioned --smp 1 --memory 1G --reserve-memory 0M --node-id 0 --check=false \
+      --kafka-addr 0.0.0.0:9092 --advertise-kafka-addr redpanda:9092 --default-log-level=warn
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "3"
 
   marketdata:
     build: ./marketdata
@@ -53,5 +58,27 @@ services:
       - redis
       - redpanda
 
+  hedger:
+    build: ./hedger
+    container_name: hedgesim-hedger
+    environment:
+      - POSTGRES_DSN=postgresql+asyncpg://trader:traderpass@postgres:5432/trading
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:9092
+      - REDIS_URL=redis://redis:6379/0
+      - HEDGE_BAND_USD_BTC=50000
+      - HEDGE_BAND_USD_ETH=20000
+      - HEDGE_BAND_USD_NVDA=10000
+      - HEDGE_BAND_USD_SPX=20000
+      - CLIP_USD_BTC=25000
+      - CLIP_USD_ETH=10000
+      - CLIP_USD_NVDA=5000
+      - CLIP_USD_SPX=10000
+    ports:
+      - "8001:8001"
+    depends_on:
+      - postgres
+      - redis
+      - redpanda
+      
 volumes:
   pgdata:
