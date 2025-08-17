@@ -10,7 +10,7 @@ import logging
 import sys
 
 logging.basicConfig(
-    level=logging.INFO,  # or DEBUG, WARNING, etc.
+    level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)]
 )
@@ -48,13 +48,13 @@ async def process_order(msg: dict):
         row = res.first()    
         if not row:
             await s.execute(text(
-                "INSERT INTO positions(symbol,, spot_qty, perp_qty) VALUES (:s, 0, 0)", {"s": symbol}))
+                "INSERT INTO positions(symbol,, spot_qty, perp_qty) VALUES (:s, 0, 0)"), {"s": symbol})
             await s.commit()
             spot_qty = perp_qty = 0.0
         else:
             _, spot_qty, perp_qty = row
 
-    price_raw = await redis.get(f"price:{symbol}")
+    price_raw = await redis_client.get(f"price:{symbol}")
     price = float(price_raw) if price_raw else 0.0
 
     usd_need = need_hedge(spot_qty, perp_qty, price, symbol)
@@ -66,8 +66,7 @@ async def process_order(msg: dict):
     async with SessionLocal() as s:
         # update perp leg as if we used a perp to hedge (simulation)
         res = await s.execute(
-            text("SELECT id, spot_qty, perp_qty FROM positions WHERE symbol=:s", {"s": symbol})
-        )
+            text("SELECT id, spot_qty, perp_qty FROM positions WHERE symbol=:s"), {"s": symbol})
         row = res.first()
         pid, spot_qty, perp_qty = row
         new_perp = perp_qty + clip
@@ -77,7 +76,7 @@ async def process_order(msg: dict):
         await s.execute(text(
             """
                 INSERT INTO hedges(symbol, side, quantity, venue, price, fee_bps)
-                VALUES (:symbol, :side, :quantity, :venie, :price, :fee)
+                VALUES (:symbol, :side, :quantity, :venue, :price, :fee)
             """), {
                     "symbol": symbol,
                     "side": hedge_side,
@@ -109,7 +108,6 @@ async def consumer_loop():
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.run_until_complete(ensure_tables())
-
     loop.run_until_complete(consumer_loop())
 
         

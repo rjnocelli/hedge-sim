@@ -6,7 +6,7 @@ class Kafka:
     def __init__(self):
         self.producer: AIOKafkaProducer | None = None
     async def start(self):
-        self.producer: AIOKafkaProducer(
+        self.producer = AIOKafkaProducer(
             bootstrap_servers=settings.kafka_bootstrap_servers,
             client_id=settings.app_name,
             value_serializer=lambda v: json.dumps(v).encode("utf-8")
@@ -19,7 +19,7 @@ class Kafka:
 
     async def publish_order(self, payload: dict):
         assert self.producer is not None
-        await self.producer.send_and_await("orders.new", payload)
+        await self.producer.send_and_wait("orders.new", payload)
 
 kafka = Kafka()
         
